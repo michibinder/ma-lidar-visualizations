@@ -197,8 +197,8 @@ def plot_era5_jet_pvu_composition(config, vars, ds, ds_ml, ds_pv, ds_2pvu, t):
         tmp_level = levels[j]
 
         # --- TPJ Jet --- #
-        cont_z   = ax_tpj.contour(ds_pv.longitude_plot, ds_pv.latitude, ds_pv['z'].sel(level=met_level)[t,:,:]/g, colors='dimgray', levels=geop_levels, linewidths=lw_wind)
-        contf_wind  = ax_tpj.contourf(ds_pv.longitude_plot, ds_pv.latitude, ds_pv['u_horiz'].sel(level=met_level)[t,:,:], cmap=cmap, norm=norm, levels=wind_levels,extend='both')
+        cont_z   = ax_tpj.contour(ds_pv.longitude_plot, ds_pv.latitude, ds_pv['z'].sel(pressure_level=met_level)[t,:,:]/g, colors='dimgray', levels=geop_levels, linewidths=lw_wind)
+        contf_wind  = ax_tpj.contourf(ds_pv.longitude_plot, ds_pv.latitude, ds_pv['u_horiz'].sel(pressure_level=met_level)[t,:,:], cmap=cmap, norm=norm, levels=wind_levels,extend='both')
 
         # Replace everything below threshold with NAN -> transparent??
         cont_tprime  = ax_tpj.contour(ds_ml.longitude_plot,  ds_ml.latitude, ds_ml['tprime'][t,:,:,:].sel(level=tmp_level), colors=clev_colors, levels=clev_lin, linewidths=lw_medium, extend='both')

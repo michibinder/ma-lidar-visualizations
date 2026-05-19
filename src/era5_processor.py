@@ -70,12 +70,68 @@ def processing_data_for_jetexit_comp(config,ds,ds_pv,ds_2pvu):
     return ds,ds_pv,ds_2pvu
 
 
-def prepare_interpolated_ml_ds(file_ml,file_ml_T21,file_ml_int):
+# def prepare_interpolated_ml_ds(file_ml,file_ml_T21,file_ml_int):
+#     """"Open files"""
+#     ml_coeff = pd.read_csv(file_ml_coeff)
+#     # engine="netcdf4"
+#     with xr.open_dataset(file_ml) as ds:
+#         with xr.open_dataset(file_ml_T21) as ds_T21:
+#             """Interpolate the model level dataset to a regular grid and combine with T21 (filtered) dataset"""
+#             lnsp = ds['lnsp'][:,0,:,:].drop_vars('level').expand_dims(dim={'level':138}, axis=1)
+#             dims = np.shape(lnsp)
+
+#             a = xr.DataArray(ml_coeff['a [Pa]'])
+#             a = a.rename({'dim_0':'level'})
+#             a = a.expand_dims(dim={'time':dims[0],'latitude':dims[2],'longitude':dims[3]},axis=[0,2,3])
+
+#             b = xr.DataArray(ml_coeff['b'])
+#             b = b.rename({'dim_0':'level'})
+#             b = b.expand_dims(dim={'time':dims[0],'latitude':dims[2],'longitude':dims[3]},axis=[0,2,3])
+
+#             # - Pressure at half levels - # 
+#             p_half = a + b * np.exp(lnsp.values)
+
+#             """Compute geopotential and geometric height"""
+#             ds = compute_z_level(ds, p_half)
+#             ds['geom_height'] = Re * ds['geop_height'] / (Re-ds['geop_height'])
+
+#             # - Calculate pressure on model levels - #
+#             i=np.arange(0,137)
+#             ds['p'] = ds['t'].copy()
+#             ds['p'][:,i,:,:] = (p_half[:,i+1,:,:].values + p_half[:,i,:,:].values) / 2
+            
+#             # - Calculate T' - #
+#             ds['tprime'] = ds['t']-ds_T21['t']
+
+#             """Interpolate data to aequidistant vertical grid"""
+#             z_new = np.linspace(0,70,176) * 1000
+#             # z_new   = np.linspace(0,80,201) * 1000
+#             vars    = ['t','p','u','v','tprime']
+#             alt_var = 'geop_height' # 'geom_height'
+#             ds = interp_ds_vertically(ds,z_new,alt_var,vars)
+
+#             # - Compression - #
+#             for var_name in vars: # ds.variables
+#                 ds[var_name] = ds[var_name].astype('float32') #'int16'
+
+#             ds.to_netcdf(file_ml_int)
+
+
+def prepare_interpolated_ml_ds(file_ml,file_ml_T21,file_ml_p,file_ml_T21_p,file_ml_int):
     """"Open files"""
     ml_coeff = pd.read_csv(file_ml_coeff)
     # engine="netcdf4"
+
     with xr.open_dataset(file_ml) as ds:
+        with xr.open_dataset(file_ml_p) as dsp:
+            ds = ds.merge(dsp)
+        ds = ds.rename({'model_level':'level', 'valid_time': 'time'})
+
         with xr.open_dataset(file_ml_T21) as ds_T21:
+            with xr.open_dataset(file_ml_T21_p) as dsp:
+                ds_T21 = ds_T21.merge(dsp)
+            ds_T21 = ds_T21.rename({'model_level':'level', 'valid_time': 'time'})
+
             """Interpolate the model level dataset to a regular grid and combine with T21 (filtered) dataset"""
             lnsp = ds['lnsp'][:,0,:,:].drop_vars('level').expand_dims(dim={'level':138}, axis=1)
             dims = np.shape(lnsp)
@@ -105,7 +161,7 @@ def prepare_interpolated_ml_ds(file_ml,file_ml_T21,file_ml_int):
 
             """Interpolate data to aequidistant vertical grid"""
             z_new = np.linspace(0,70,176) * 1000
-            # z_new   = np.linspace(0,80,161) * 1000
+            # z_new   = np.linspace(0,80,201) * 1000
             vars    = ['t','p','u','v','tprime']
             alt_var = 'geop_height' # 'geom_height'
             ds = interp_ds_vertically(ds,z_new,alt_var,vars)
@@ -147,8 +203,8 @@ def prepare_T21(file_ml, file_ml_int):
         ds['p'][:,i,:,:] = (p_half[:,i+1,:,:].values + p_half[:,i,:,:].values) / 2
 
         """Interpolate data to aequidistant vertical grid"""
-        z_new = np.linspace(0,70,176) * 1000
-        # z_new   = np.linspace(0,80,161) * 1000
+        # z_new = np.linspace(0,70,176) * 1000
+        z_new   = np.linspace(0,80,201) * 1000
         vars    = ['t','p','u','v']
         alt_var = 'geop_height' # 'geom_height'
         ds = interp_ds_vertically(ds,z_new,alt_var,vars)

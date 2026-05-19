@@ -47,6 +47,10 @@ def download_era5_region(CONFIG_FILE):
     else:
         obs_list = os.path.join(config.get("INPUT","OBS_FOLDER"), config.get("INPUT","OBS_FILE"))
     
+    subs = ["20240718-2136"]
+    obs_list = [x for x in obs_list if any(y in x for y in subs)]
+    print("Obs: ", obs_list)
+
     # config['GENERAL']['NCPUS'] = str(int(multiprocessing.cpu_count()-2))
     config['GENERAL']['NCPUS'] = "4"
     print("[i]   CPUs available: {}".format(multiprocessing.cpu_count()))
@@ -86,12 +90,15 @@ def download_and_interpolate_era5_data(ii,config,obs,sema):
         if (ds.start_time_utc.hour < reference_hour):
             """Get previous day"""
             start_date = ds.start_time_utc - datetime.timedelta(hours=24)
-                
-    if ds.duration > datetime.timedelta(hours=duration_threshold):
+    
+    # if ds.duration > datetime.timedelta(hours=duration_threshold):
+    if ds.duration > duration_threshold:
         """Check if file already exists"""
         nc_file_name = file_name[:13]
         file_ml     = os.path.join(config.get("OUTPUT","ERA5-FOLDER"), nc_file_name + '-ml.nc')
+        file_ml_p   = os.path.join(config.get("OUTPUT","ERA5-FOLDER"), nc_file_name + '-ml-p.nc')
         file_ml_T21 = os.path.join(config.get("OUTPUT","ERA5-FOLDER"), nc_file_name + '-ml-T21.nc')
+        file_ml_T21_p = os.path.join(config.get("OUTPUT","ERA5-FOLDER"), nc_file_name + '-ml-T21-p.nc')
         file_ml_int = os.path.join(config.get("OUTPUT","ERA5-FOLDER"), nc_file_name + '-ml-int.nc')
         file_pl     = os.path.join(config.get("OUTPUT","ERA5-FOLDER"), nc_file_name + '-pl.nc')
         file_pvu    = os.path.join(config.get("OUTPUT","ERA5-FOLDER"), nc_file_name + '-pvu.nc')
@@ -103,19 +110,21 @@ def download_and_interpolate_era5_data(ii,config,obs,sema):
             DATE = start_date.strftime("%Y-%m-%d") + "/to/" + (start_date + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
         ## AREA = '-25/-120/-85/-30',          
         AREA = config.get("ERA5","AREA")
-        c = cdsapi.Client(quiet=True)
+        levlist_ml = "/".join(str(num) for num in range(1, 138))
+        # c = cdsapi.Client(quiet=True)
+        c = cdsapi.Client()
 
         if not os.path.exists(file_ml_int):
             if not os.path.exists(file_ml):
-                print(f"[i][{ii}]   Retrieving full model data...")
+                print(f"[i][{ii}]   Retrieving full model data for u,v,t...")
                 # - Request model level data - #
                 c.retrieve('reanalysis-era5-complete', {
-                    'class'   : 'ea',
+                    # 'class'   : 'ea',
                     'date'    : DATE,
-                    'expver'  : '1',
-                    'levelist': '1/to/137',
+                    # 'expver'  : '1',
+                    'levelist': levlist_ml,
                     'levtype' : 'ml',
-                    'param'   : '129/130/131/132/133/152',
+                    'param'   : '130/131/132/133',
                     'stream'  : 'oper',
                     'time'    : '00:00:00/01:00:00/02:00:00/03:00:00/04:00:00/05:00:00/06:00:00/07:00:00/08:00:00/09:00:00/10:00:00/11:00:00/12:00:00/13:00:00/14:00:00/15:00:00/16:00:00/17:00:00/18:00:00/19:00:00/20:00:00/21:00:00/22:00:00/23:00:00',
                     # 'time'    : '00:00:00/to/23:00:00',
@@ -126,16 +135,49 @@ def download_and_interpolate_era5_data(ii,config,obs,sema):
                     'resol'   : 'av', # 'av', '639', '21'
                 }, file_ml)
 
+                if not os.path.exists(file_ml_p):
+                    print(f"[i][{ii}]   Retrieving full model data for p...")
+                    # - Request model level data - #
+                    c.retrieve('reanalysis-era5-complete', {
+                        # 'class'   : 'ea',
+                        'date'    : DATE,
+                        # 'expver'  : '1',
+                        'levelist': '1',
+                        'levtype' : 'ml',
+                        'param'   : '129/152',
+                        'stream'  : 'oper',
+                        'time'    : '00:00:00/01:00:00/02:00:00/03:00:00/04:00:00/05:00:00/06:00:00/07:00:00/08:00:00/09:00:00/10:00:00/11:00:00/12:00:00/13:00:00/14:00:00/15:00:00/16:00:00/17:00:00/18:00:00/19:00:00/20:00:00/21:00:00/22:00:00/23:00:00',
+                        # 'time'    : '00:00:00/to/23:00:00',
+                        'type'    : 'an',
+                        'area'    : AREA,
+                        'grid'    : '0.25/0.25',               # Latitude/longitude. Default: spherical harmonics or reduced Gaussian grid
+                        'format'  : 'netcdf', # 'short'??
+                        'resol'   : 'av', # 'av', '639', '21'
+                    }, file_ml_p)
+
+                #                 c.retrieve("reanalysis-era5-complete", {
+                #     "class": "ea",
+                #     "date": "2024-07-18/2024-07-19",
+                #     "expver": "1",
+                #     "levelist": "1/2/3/4/5/6/7/8/9/10/11/12/13/14/15/16/17/18/19/20/21/22/23/24/25/26/27/28/29/30/31/32/33/34/35/36/37/38/39/40/41/42/43/44/45/46/47/48/49/50/51/52/53/54/55/56/57/58/59/60/61/62/63/64/65/66/67/68/69/70/71/72/73/74/75/76/77/78/79/80/81/82/83/84/85/86/87/88/89/90/91/92/93/94/95/96/97/98/99/100/101/102/103/104/105/106/107/108/109/110/111/112/113/114/115/116/117/118/119/120/121/122/123/124/125/126/127/128/129/130/131/132/133/134/135/136/137",
+                #     "levtype": "ml",
+                #     "param": "129/130/131/132/133/152",
+                #     "stream": "oper",
+                #     "time": "00:00:00/01:00:00/02:00:00/03:00:00/04:00:00/05:00:00/06:00:00/07:00:00/08:00:00/09:00:00/10:00:00/11:00:00/12:00:00/13:00:00/14:00:00/15:00:00/16:00:00/17:00:00/18:00:00/19:00:00/20:00:00/21:00:00/22:00:00/23:00:00",
+                #     "type": "an"
+                # }, "output")
+
+
             if not os.path.exists(file_ml_T21):
                 print(f"[i][{ii}]   Retrieving T21 model data...")
                 # - Request model level data - #
                 c.retrieve('reanalysis-era5-complete', {
-                    'class'   : 'ea',
+                    # 'class'   : 'ea',
                     'date'    : DATE,
-                    'expver'  : '1',
-                    'levelist': '1/to/137',
+                    # 'expver'  : '1',
+                    'levelist': levlist_ml,
                     'levtype' : 'ml',
-                    'param'   : '129/130/131/132/133/152',
+                    'param'   : '130/131/132/133',
                     'stream'  : 'oper',
                     'time'    : '00:00:00/01:00:00/02:00:00/03:00:00/04:00:00/05:00:00/06:00:00/07:00:00/08:00:00/09:00:00/10:00:00/11:00:00/12:00:00/13:00:00/14:00:00/15:00:00/16:00:00/17:00:00/18:00:00/19:00:00/20:00:00/21:00:00/22:00:00/23:00:00',
                     # 'time'    : '00:00:00/to/23:00:00',
@@ -145,11 +187,33 @@ def download_and_interpolate_era5_data(ii,config,obs,sema):
                     'format'  : 'netcdf', # 'short'??
                     'resol'   : '21', # 'av', '639', '21'
                 }, file_ml_T21)
-
+            
+            if not os.path.exists(file_ml_T21_p):
+                print(f"[i][{ii}]   Retrieving T21 model data...")
+                # - Request model level data - #
+                c.retrieve('reanalysis-era5-complete', {
+                    # 'class'   : 'ea',
+                    'date'    : DATE,
+                    # 'expver'  : '1',
+                    'levelist': '1',
+                    'levtype' : 'ml',
+                    'param'   : '129/152',
+                    'stream'  : 'oper',
+                    'time'    : '00:00:00/01:00:00/02:00:00/03:00:00/04:00:00/05:00:00/06:00:00/07:00:00/08:00:00/09:00:00/10:00:00/11:00:00/12:00:00/13:00:00/14:00:00/15:00:00/16:00:00/17:00:00/18:00:00/19:00:00/20:00:00/21:00:00/22:00:00/23:00:00',
+                    # 'time'    : '00:00:00/to/23:00:00',
+                    'type'    : 'an',
+                    'area'    : AREA,
+                    'grid'    : '0.25/0.25',               # Latitude/longitude. Default: spherical harmonics or reduced Gaussian grid
+                    'format'  : 'netcdf', # 'short'??
+                    'resol'   : '21', # 'av', '639', '21'
+                }, file_ml_T21_p)
+            
             print(f"[i][{ii}]   Interpolating model levels...")
-            era5_processor.prepare_interpolated_ml_ds(file_ml,file_ml_T21,file_ml_int)
+            era5_processor.prepare_interpolated_ml_ds(file_ml,file_ml_T21,file_ml_p,file_ml_T21_p,file_ml_int)
             os.remove(file_ml)
             os.remove(file_ml_T21)
+            os.remove(file_ml_p)
+            os.remove(file_ml_T21_p)
 
         if (not os.path.exists(file_pl)):
             print(f"[i][{ii}]   Retrieving pressure level data...")
@@ -192,7 +256,7 @@ def download_and_interpolate_era5_data(ii,config,obs,sema):
     sema.release()
 
 if __name__ == '__main__':
-    """provide ini file as argument and pass it to function"""
+    """provide ini file as argument and pass it tod function"""
     """Try changing working directory for Crontab"""
     try:
         os.chdir(os.path.dirname(sys.argv[0]))

@@ -226,8 +226,8 @@ def plot_era5_jet_composition(config, vars, ds, ds_ml, ds_pv, ds_2pvu, ds_saamer
 
         # --- TPJ Jet --- #
         if j==2:
-            ax_tpj.contour(ds_pv.longitude_plot, ds_pv.latitude, ds_pv['z'].sel(level=met_level)[t,:,:]/g, colors='dimgray', levels=geop_levels, linewidths=lw_wind)
-            contf_wind = ax_tpj.contourf(ds_pv.longitude_plot, ds_pv.latitude, ds_pv['u_horiz'].sel(level=met_level)[t,:,:], cmap=cmap, norm=norm, levels=wind_levels,extend='both')
+            ax_tpj.contour(ds_pv.longitude_plot, ds_pv.latitude, ds_pv['z'].sel(pressure_level=met_level)[t,:,:]/g, colors='dimgray', levels=geop_levels, linewidths=lw_wind)
+            contf_wind = ax_tpj.contourf(ds_pv.longitude_plot, ds_pv.latitude, ds_pv['u_horiz'].sel(pressure_level=met_level)[t,:,:], cmap=cmap, norm=norm, levels=wind_levels,extend='both')
             ax_tpj.contour(ds_ml.longitude_plot, ds_ml.latitude, ds_ml['tprime'][t,:,:,:].sel(level=tmp_level1), colors=clev_colors, levels=clev_lin, linewidths=lw_medium, extend='both')
         else:
             # ax_tpj.contourf(ds_ml.longitude_plot, ds_ml.latitude, ds_ml['u_horiz'].sel(level=tmp_level1)[t,:,:], cmap=cmap_vert, norm=norm_vert, levels=wind_levels_vert,extend='both')

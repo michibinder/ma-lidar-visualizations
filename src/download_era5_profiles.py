@@ -85,7 +85,8 @@ def download_and_interpolate_era5_data(ii,config,obs,sema):
         if (ds.start_time_utc.hour < reference_hour):
             """Get previous day"""
             start_date = ds.start_time_utc - datetime.timedelta(hours=24)
-            
+    
+    print,ds.duration
     if ds.duration > datetime.timedelta(hours=duration_threshold):
         """Check if file already exists"""
         nc_file_name = file_name[:13]

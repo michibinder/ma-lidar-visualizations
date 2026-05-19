@@ -65,11 +65,13 @@ def open_and_decode_lidar_measurement(obs: str):
     # ds.attrs["end_time_utc"]   = datetime.datetime.utcfromtimestamp(ds.integration_end_time.values[-1].astype('O')/1e9)
     ds.attrs["start_time_utc"] = datetime.datetime.utcfromtimestamp(ds.time.values[0].astype('O')/1e9)
     ds.attrs["end_time_utc"]   = datetime.datetime.utcfromtimestamp(ds.time.values[-1].astype('O')/1e9)
-    ds.attrs["duration"]       = ds.end_time_utc - ds.start_time_utc
+#    ds.attrs["duration"]       = ds.end_time_utc - ds.start_time_utc
 
     """Compose duration string"""
-    hours = ds.duration.seconds // 3600
-    minutes = (ds.duration.seconds % 3600) // 60
+#    hours = ds.duration.seconds // 3600
+#    minutes = (ds.duration.seconds % 3600) // 60
+    hours = (ds.duration * 3600) // 3600
+    minutes = ((ds.duration * 3600) % 3600) // 60
     duration_str = ''
     if hours <= 9:
         duration_str = duration_str + '0' + str(int(hours))
@@ -122,14 +124,31 @@ def process_lidar_measurement(config: dict, ds: object):
         ds['date_endp']   = ds.start_time_utc + datetime.timedelta(hours=fixed_timeframe)
         
     """ Temperature missing values (Change 0 to NaN)"""
-    ds.temperature.values = np.where(ds.temperature == 0, np.nan, ds.temperature)
-    ds.temperature_err.values = np.where(ds.temperature_err == 0, np.nan, ds.temperature_err)
+    if config["GENERAL"]["CONTENT"] != "aerosol" and config["GENERAL"]["CONTENT"] != "nlc":
+        ds.temperature.values = np.where(ds.temperature == 0, np.nan, ds.temperature)
+        ds.temperature_err.values = np.where(ds.temperature_err == 0, np.nan, ds.temperature_err)
+    
+    """ bsr missing values (Change 0 to NaN)"""
+    if config["GENERAL"]["CONTENT"] == "aerosol":
+        ds.bsr.values = np.where(ds.bsr < 1, np.nan, ds.bsr)
+        ds.bsr_err.values = np.where(ds.bsr_err == 0, np.nan, ds.bsr_err)
+    
+    if config["GENERAL"]["CONTENT"] == "nlc":
+        ds.bsr.values = np.where(ds.bsr < 1, np.nan, ds.bsr)
+        ds.bsr_err.values = np.where(ds.bsr_err == 0, np.nan, ds.bsr_err)
 
     """Measurement data for plot"""
-    if "altitude_offset" in ds.variables:
+    # altitude_offset is zero in cnt files for aerosol, 
+    # altitude is from station_height to station-height + 50 km
+    if config["GENERAL"]["CONTENT"] == "aerosol":
+        ds['alt_plot'] = ds.altitude / 1000 #km
+    elif config["GENERAL"]["CONTENT"] == "nlc":
+        ds['alt_plot'] = ds.altitude / 1000 #km
+    elif "altitude_offset" in ds.variables:
         ds['alt_plot'] = (ds.altitude + ds.altitude_offset.values + ds.station_height.values) / 1000 #km
     else:
         ds['alt_plot'] = ds.altitude / 1000
+    ds['date_created'] = ds.date_created
     ds.attrs['vres'] = (ds['alt_plot'][1]-ds['alt_plot'][0]).values # in km
     ds.attrs['tres'] = (ds['time'][1]-ds['time'][0]).values.astype("timedelta64[m]").astype('int') # in minutes
 

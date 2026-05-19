@@ -154,6 +154,8 @@ def plot_lidar_tmp(config, obs, pbar):
     TRES = int(config.get("GENERAL","RESOLUTION").split("Z")[0][2:])
     VRES = int(config.get("GENERAL","RESOLUTION").split("Z")[-1][:-3])
     axes[0,0].text(-0.025, 1.0, "UTC", horizontalalignment='right', verticalalignment='bottom', transform=axes[0,0].transAxes)
+    
+    axes[3,1].text(1, 0.2, np.char.add('date created ',ds['date_created'].to_numpy()), horizontalalignment='right',verticalalignment='bottom', transform=axes[3,1].transAxes, fontsize=10)
 
     fig.suptitle('          German Aerospace Center (DLR)\n \
     {}, {}\n \

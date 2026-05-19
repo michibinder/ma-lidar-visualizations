@@ -7,8 +7,16 @@
 
 import matplotlib.dates as mdates
 import time
+import os
 from datetime import datetime
 import numpy as np
+
+import imageio.v2 as imageio
+import logging
+import warnings
+warnings.simplefilter("ignore", RuntimeWarning)
+warnings.filterwarnings('ignore', category=UserWarning, module='imageio_ffmpeg')
+logging.getLogger('imageio_ffmpeg').setLevel(logging.ERROR)
 
 """Config"""
 pbar_interval = 5 # %
@@ -59,3 +67,34 @@ def add_watermark(fig):
     fig.text(0.25, 0.75, 'German Aerospace Center', style = 'italic', fontsize = 18, color = "grey", alpha=0.15, ha='center', va='center', rotation=30) 
     fig.text(0.75, 0.25, 'German Aerospace Center', style = 'italic', fontsize = 18, color = "grey", alpha=0.15, ha='center', va='center', rotation=30) 
     return fig
+
+
+def create_animation(png_folder, output_path,fps=4):
+    """Create animation (mp4) from pngs"""
+
+    ## pip install imageio[ffmpeg]
+    filenames    = sorted(os.listdir(png_folder))
+    ## fps          = 4 or 10
+    macro_block_size = 16 # Default is 16 for optimal compatibility
+
+    # Increase the probesize to give FFmpeg more data to estimate the rate
+    # writer_options = {'ffmpeg_params': ['-probesize', '100M']}  # Increase probesize to 5MB
+    writer_options = {'ffmpeg_params': ['-probesize', '5000000', '-analyzeduration', '5000000']}
+
+    with imageio.get_writer(output_path, fps=fps, macro_block_size=macro_block_size, **writer_options) as writer:
+        for filename in filenames:
+            if filename.endswith(".png"):
+                image = imageio.imread(os.path.join(png_folder, filename))
+                image = resize_to_macro_block(image, macro_block_size)
+                writer.append_data(image)
+    # imageio.mimsave(image_folder + "/era5_sequence.gif", images, duration=1/fps, palettesize=256/2)  # loop=0, quantizer="nq", palettesize=256
+
+
+def resize_to_macro_block(image, macro_block_size):
+    """Function to make image dimensions divisible by macro block size"""
+    height, width = image.shape[:2]
+    new_height = (height + macro_block_size - 1) // macro_block_size * macro_block_size
+    new_width = (width + macro_block_size - 1) // macro_block_size * macro_block_size
+    if (new_height != height) or (new_width != width):
+        image = np.pad(image, ((0, new_height - height), (0, new_width - width), (0, 0)), 'constant')
+    return image

@@ -31,6 +31,8 @@ import filter, cmaps, lidar_processor, plt_helper
 from plot_lidar_filt_1D import plot_lidar_filt_1D
 from plot_lidar_filt_stacked import plot_lidar_filt_stacked
 from plot_lidar_tmp import plot_lidar_tmp
+from plot_lidar_aerosol import plot_lidar_aerosol
+from plot_lidar_nlc import plot_lidar_nlc
 
 plt.style.use('latex_default.mplstyle')
 
@@ -45,7 +47,11 @@ def plot_lidar_data(CONFIG_FILE, content, reset):
     config = configparser.ConfigParser()
     config.read(CONFIG_FILE)
 
-    if config.get("INPUT","OBS_FILE") == "NONE":
+    if content == "aerosol":
+    	obs_list = sorted(glob.glob(os.path.join(config.get("INPUT","AEROSOL_FOLDER") ,	config.get("GENERAL","RESOLUTION_AEROSOL"))))
+    elif content == "nlc":
+    	obs_list = sorted(glob.glob(os.path.join(config.get("INPUT","AEROSOL_FOLDER") , config.get("GENERAL","RESOLUTION_NLC"))))
+    elif config.get("INPUT","OBS_FILE") == "NONE":
         obs_list = sorted(glob.glob(os.path.join(config.get("INPUT","OBS_FOLDER") , config.get("GENERAL","RESOLUTION"))))
     else:
         obs_list = os.path.join(config.get("INPUT","OBS_FOLDER"), config.get("INPUT","OBS_FILE"))
@@ -57,7 +63,7 @@ def plot_lidar_data(CONFIG_FILE, content, reset):
         shutil.rmtree(os.path.join(config.get("OUTPUT","FOLDER"),config.get("GENERAL","CONTENT")), ignore_errors=True)
     os.makedirs(os.path.join(config.get("OUTPUT","FOLDER"),config.get("GENERAL","CONTENT")), exist_ok=True)
     fig_list = sorted(glob.glob(os.path.join(config.get("OUTPUT","FOLDER"),config.get("GENERAL","CONTENT"),"*.png")))
-    fig_list = [fig_path.split("/")[-1] for fig_path in fig_list]
+#    fig_list = [fig_path.split("/")[-1] for fig_path in fig_list]
 
     progress_counter = mp.Manager().Value('i', 0)
     lock = mp.Manager().Lock()
@@ -70,7 +76,20 @@ def plot_lidar_data(CONFIG_FILE, content, reset):
         fig_exists = False
         filename   = obs.split("/")[-1][0:13]
         for figname in fig_list:
+            fo = figname
+            figname = figname.split("/")[-1]
             if filename in figname:
+                """Check if figure is older than datafile"""
+                figt = os.path.getmtime(fo)  
+                figo = os.path.getmtime(obs)
+                #print(fo,figt,obs,figo)
+                if figo > figt:
+                        print("recreating ",fo)
+                        """Delete it, cause it is recreated with a different name (duration)"""
+                        """this is not nice, but f_maplt cannot by accident rm data"""
+                        """in /export/data/malidar, nk"""
+                        os.remove(fo)
+                        break
                 fig_exists = True
                 break
         if reset or not fig_exists:
@@ -89,6 +108,10 @@ def plot_lidar_data(CONFIG_FILE, content, reset):
             results = pool.starmap(plot_lidar_filt_stacked, args_list)
         elif config.get("GENERAL","CONTENT") == "filt-1D":
             pool.starmap(plot_lidar_filt_1D, args_list)
+        elif config.get("GENERAL","CONTENT") == "aerosol":
+            pool.starmap(plot_lidar_aerosol, args_list)
+        elif config.get("GENERAL","CONTENT") == "nlc":
+            pool.starmap(plot_lidar_nlc, args_list)
         else:
             pool.starmap(plot_lidar_tmp, args_list)
     
